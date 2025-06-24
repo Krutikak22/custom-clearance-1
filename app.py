@@ -16,7 +16,7 @@ st.markdown("<p style='color: gray;'>Upload or enter customs-related documents f
 # === Load Model & Vectorizer ===
 try:
     vectorizer = load('vectorizer.pkl')
-    logreg_model = load('logreg_model.pkl')  # ✅ updated
+    logreg_model = load('logreg_model.pkl')
 except Exception as e:
     st.error(f"❌ Error loading model/vectorizer: {e}")
     st.stop()
@@ -69,7 +69,7 @@ with tab1:
         else:
             with st.spinner("Classifying..."):
                 X_input = vectorizer.transform([text])
-                logreg_pred = logreg_model.predict(X_input)[0]  # ✅ updated
+                logreg_pred = logreg_model.predict(X_input)[0]
 
             st.success(f"✅ Document classified as: **{logreg_pred}**")
             st.text_area("📄 Extracted Text:", text, height=150)
