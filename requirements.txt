@@ -1,10 +1,15 @@
+# Core ML and Data Processing
 scikit-learn==1.4.2
 pandas
 joblib
-streamlit
-requests
+
+# Text Processing & OCR
 pytesseract
 python-docx
 docx2txt
 Pillow
 PyMuPDF
+
+# Web App Framework
+streamlit
+requests
