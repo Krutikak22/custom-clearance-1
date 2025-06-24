@@ -16,7 +16,7 @@ st.markdown("<p style='color: gray;'>Upload or enter customs-related documents f
 # === Load Model & Vectorizer ===
 try:
     vectorizer = load('vectorizer.pkl')
-    logreg_model = load('logreg_model.pkl')
+    logreg_model = load('logreg_model.pkl')  # ✅ Using only Logistic Regression
 except Exception as e:
     st.error(f"❌ Error loading model/vectorizer: {e}")
     st.stop()
