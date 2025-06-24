@@ -16,7 +16,7 @@ st.markdown("<p style='color: gray;'>Upload or enter customs-related documents f
 # === Load Model & Vectorizer ===
 try:
     vectorizer = load('vectorizer.pkl')
-    rf_model = load('rf_model.pkl')
+    logreg_model = load('logreg_model.pkl')  # ✅ updated
 except Exception as e:
     st.error(f"❌ Error loading model/vectorizer: {e}")
     st.stop()
@@ -69,9 +69,9 @@ with tab1:
         else:
             with st.spinner("Classifying..."):
                 X_input = vectorizer.transform([text])
-                rf_pred = rf_model.predict(X_input)[0]
+                logreg_pred = logreg_model.predict(X_input)[0]  # ✅ updated
 
-            st.success(f"✅ Document classified as: **{rf_pred}**")
+            st.success(f"✅ Document classified as: **{logreg_pred}**")
             st.text_area("📄 Extracted Text:", text, height=150)
 
 # === Tab 2: Translation ===
@@ -101,7 +101,7 @@ with tab2:
 with tab3:
     st.header("About this App")
     st.markdown("""
-    This tool classifies documents relevant to **customs clearance** using a **Random Forest** model.
+    This tool classifies documents relevant to **customs clearance** using a **Logistic Regression** model.
 
     Supported uploads:
     - 📄 PDFs
