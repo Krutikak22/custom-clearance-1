@@ -3,106 +3,114 @@ from joblib import load
 import pandas as pd
 import time
 import requests
-
-# Load models
-vectorizer = load('tfidf_vectorizer.pkl')
-rf_model = load('random_forest.pkl')
-dt_model = load('decision_tree.pkl')
-svm_model = load('svm_model.pkl')
+import fitz  # PyMuPDF
+import docx2txt
+from PIL import Image
+import pytesseract
 
 st.set_page_config(page_title="Doc Classifier App", layout="wide")
 
 st.title("📄 Intelligent Document Classifier")
-st.markdown(
-    "<p style='color: gray;'>Analyze, classify, and translate your documents easily.</p>",
-    unsafe_allow_html=True
-)
+st.markdown("<p style='color: gray;'>Upload or enter customs-related documents for classification and translation.</p>", unsafe_allow_html=True)
 
-# Translation function using LibreTranslate
+# === Load Model & Vectorizer ===
+try:
+    vectorizer = load('vectorizer.pkl')
+    rf_model = load('rf_model.pkl')
+except Exception as e:
+    st.error(f"❌ Error loading model/vectorizer: {e}")
+    st.stop()
+
+# === LibreTranslate API
 def libre_translate(text, target_lang):
     url = "https://libretranslate.de/translate"
-    payload = {
-        "q": text,
-        "source": "auto",
-        "target": target_lang,
-        "format": "text"
-    }
+    payload = {"q": text, "source": "auto", "target": target_lang, "format": "text"}
     response = requests.post(url, data=payload)
     if response.status_code == 200:
         return response.json()["translatedText"]
-    else:
-        return "⚠️ Translation failed."
+    return "⚠️ Translation failed."
 
-# Tabs
-tab1, tab2, tab3 = st.tabs(["Classification 🧠", "Translation & Report 📝", "About ℹ️"])
+# === Text Extraction Function
+def extract_text_from_file(uploaded_file):
+    file_type = uploaded_file.type
+    if file_type == "application/pdf":
+        doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
+        return " ".join(page.get_text() for page in doc)
+    elif file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        return docx2txt.process(uploaded_file)
+    elif file_type.startswith("image/"):
+        img = Image.open(uploaded_file)
+        return pytesseract.image_to_string(img)
+    return ""
 
+# === Tabs ===
+tab1, tab2, tab3 = st.tabs(["🧠 Classification", "📝 Translate + Report", "ℹ️ About"])
+
+# === Tab 1: Classification ===
 with tab1:
-    st.header("Classify your text")
-    user_input = st.text_area(
-        "Enter your document text:", height=200, placeholder="Paste your text here..."
-    )
+    st.header("📂 Upload or Paste Document for Classification")
 
-    if st.button("Classify"):
-        if not user_input.strip():
-            st.warning("Please enter some text!")
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        uploaded_file = st.file_uploader("Upload file (PDF, DOCX, Image)", type=["pdf", "docx", "jpg", "jpeg", "png"])
+    with col2:
+        user_input = st.text_area("Or paste text here:", height=200)
+
+    if st.button("🔍 Classify"):
+        text = ""
+        if uploaded_file:
+            with st.spinner("Extracting text from file..."):
+                text = extract_text_from_file(uploaded_file)
+        elif user_input.strip():
+            text = user_input.strip()
+
+        if not text:
+            st.warning("Please upload a file or enter some text.")
         else:
-            with st.spinner('Analyzing...'):
-                time.sleep(1)
-                X_input = vectorizer.transform([user_input])
+            with st.spinner("Classifying..."):
+                X_input = vectorizer.transform([text])
                 rf_pred = rf_model.predict(X_input)[0]
-                dt_pred = dt_model.predict(X_input)[0]
-                svm_pred = svm_model.predict(X_input)[0]
 
-            st.success("Classification Complete ✅")
-            st.write(f"**🤖 Random Forest Prediction:** {rf_pred}")
-            st.write(f"**🤖 Decision Tree Prediction:** {dt_pred}")
-            st.write(f"**🤖 SVM Prediction:** {svm_pred}")
+            st.success(f"✅ Document classified as: **{rf_pred}**")
+            st.text_area("📄 Extracted Text:", text, height=150)
 
+# === Tab 2: Translation ===
 with tab2:
-    st.header("Translation & Report")
-    text_to_translate = st.text_area(
-        "Enter text to translate:", height=200, placeholder="Type text to translate..."
-    )
-    target_lang = st.selectbox(
-        "Select target language:",
-        ["en", "es", "fr", "de", "hi", "ja", "zh", "ar"],
-    )
+    st.header("🌐 Translate Document Text")
+    text_to_translate = st.text_area("Enter text to translate:", height=200)
+    target_lang = st.selectbox("Select target language:", ["en", "es", "fr", "de", "hi", "ja", "zh", "ar"])
 
-    if st.button("Translate & Download Report"):
+    if st.button("🌍 Translate & Download Report"):
         if not text_to_translate.strip():
-            st.warning("Please enter some text!")
+            st.warning("Please enter some text.")
         else:
-            with st.spinner('Translating and generating report...'):
-                time.sleep(1)
+            with st.spinner("Translating and generating report..."):
                 translated_text = libre_translate(text_to_translate, target_lang)
-
-                report_df = pd.DataFrame(
-                    {"Original Text": [text_to_translate], "Translated Text": [translated_text], "Target Language": target_lang}
-                )
+                report_df = pd.DataFrame({
+                    "Original Text": [text_to_translate],
+                    "Translated Text": [translated_text],
+                    "Target Language": [target_lang]
+                })
                 report_csv = report_df.to_csv(index=False)
 
-            st.success(f"✅ Translation Complete ({target_lang})")
+            st.success("✅ Translation Complete")
             st.text_area("Translated Text:", translated_text, height=200)
-            st.download_button(
-                label="📥 Download Report as CSV",
-                data=report_csv,
-                file_name="translation_report.csv",
-                mime="text/csv",
-            )
+            st.download_button("📥 Download Report as CSV", data=report_csv, file_name="translation_report.csv", mime="text/csv")
 
+# === Tab 3: About ===
 with tab3:
-    st.header("About this app")
-    st.markdown(
-        """
-        This application lets you classify documents into categories using **machine learning models** 
-        (Random Forest, Decision Tree, SVM) and also provides **text translation**.  
-        
-        **Features:**
-        - Predict document type.
-        - Translate content into multiple languages.
-        - Download your reports as CSV files.
-        - Easy and intuitive interface.
+    st.header("About this App")
+    st.markdown("""
+    This tool classifies documents relevant to **customs clearance** using a **Random Forest** model.
 
-        Built with ❤️ using **Streamlit**.
-        """
-    )
+    Supported uploads:
+    - 📄 PDFs
+    - 📝 Word Documents (.docx)
+    - 🖼️ Images (JPG/PNG)
+
+    Bonus features:
+    - 🌐 Translate extracted text using LibreTranslate
+    - 📥 Download translation as a CSV report
+
+    Built with ❤️ using **Streamlit**, **scikit-learn**, and **LibreTranslate**.
+    """)
