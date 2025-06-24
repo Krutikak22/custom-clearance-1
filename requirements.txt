@@ -1,6 +1,10 @@
 scikit-learn==1.4.2
-joblib
 pandas
-numpy
+joblib
 streamlit
 requests
+pytesseract
+python-docx
+docx2txt
+Pillow
+PyMuPDF
