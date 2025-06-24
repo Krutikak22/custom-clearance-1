@@ -1,15 +1,14 @@
 import streamlit as st
 from joblib import load
-from googletrans import Translator  # pip install googletrans==4.0.0-rc1
 import pandas as pd
 import time
+import requests
 
 # Load models
 vectorizer = load('tfidf_vectorizer.pkl')
 rf_model = load('random_forest.pkl')
 dt_model = load('decision_tree.pkl')
 svm_model = load('svm_model.pkl')
-translator = Translator()
 
 st.set_page_config(page_title="Doc Classifier App", layout="wide")
 
@@ -18,6 +17,21 @@ st.markdown(
     "<p style='color: gray;'>Analyze, classify, and translate your documents easily.</p>",
     unsafe_allow_html=True
 )
+
+# Translation function using LibreTranslate
+def libre_translate(text, target_lang):
+    url = "https://libretranslate.de/translate"
+    payload = {
+        "q": text,
+        "source": "auto",
+        "target": target_lang,
+        "format": "text"
+    }
+    response = requests.post(url, data=payload)
+    if response.status_code == 200:
+        return response.json()["translatedText"]
+    else:
+        return "⚠️ Translation failed."
 
 # Tabs
 tab1, tab2, tab3 = st.tabs(["Classification 🧠", "Translation & Report 📝", "About ℹ️"])
@@ -33,7 +47,7 @@ with tab1:
             st.warning("Please enter some text!")
         else:
             with st.spinner('Analyzing...'):
-                time.sleep(1)  # Simulate wait
+                time.sleep(1)
                 X_input = vectorizer.transform([user_input])
                 rf_pred = rf_model.predict(X_input)[0]
                 dt_pred = dt_model.predict(X_input)[0]
@@ -51,7 +65,7 @@ with tab2:
     )
     target_lang = st.selectbox(
         "Select target language:",
-        ["en", "es", "fr", "de", "hi", "ja", "zh-cn", "ar"],
+        ["en", "es", "fr", "de", "hi", "ja", "zh", "ar"],
     )
 
     if st.button("Translate & Download Report"):
@@ -60,9 +74,7 @@ with tab2:
         else:
             with st.spinner('Translating and generating report...'):
                 time.sleep(1)
-                translated_text = translator.translate(
-                    text_to_translate, dest=target_lang
-                ).text
+                translated_text = libre_translate(text_to_translate, target_lang)
 
                 report_df = pd.DataFrame(
                     {"Original Text": [text_to_translate], "Translated Text": [translated_text], "Target Language": target_lang}
